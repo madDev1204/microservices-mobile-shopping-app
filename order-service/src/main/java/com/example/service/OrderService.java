@@ -20,7 +20,7 @@ import java.util.UUID;
 @Transactional
 public class OrderService {
     private final OrderRepository orderRepository;
-    private final WebClient webClient;
+    private final WebClient.Builder webClientBuilder;
     public void placeOrder(OrderRequest orderRequest){
         Order order = new Order(); //order object has 3 attributes
         //order number
@@ -34,19 +34,23 @@ public class OrderService {
 
         order.setOrderLineItemsList(orderLineItems); //order created from order request
 
+        //list of order skuCodes
         List<String> skuCodes = order.getOrderLineItemsList()
                 .stream()
                 .map(OrderLineItems::getSkuCode)
                 .toList();
         //before saving order to db CHECK INVENTORY - SYNC COMMUNICATION EXAMPLE
         //calling Inventory service
-        //placing order only if product in stock - check if skuCode available {DOES NOT CHECK IF quantity == 0
-        InventoryResponse[] inventoryResponseArray = webClient.get()
-                .uri("http://localhost:8082/api/inventory",  //url should not be hardcoded!
+        //placing order only if product in stock - check if skuCode available
+
+        InventoryResponse[] inventoryResponseArray = webClientBuilder.build().get()
+             //   .uri("http://localhost:8082/api/inventory",  //url should not be hardcoded! REPLACE without
+                .uri("http://inventory-service/api/inventory",
+                        //sending list of order skuCodes to check in inventory
                         uriBuilder -> uriBuilder.queryParam("skuCode", skuCodes).build())
                 .retrieve()
-                        .bodyToMono(InventoryResponse[].class) //specifying return type of request made
-                                .block();  //block for synchronous communication
+                        .bodyToMono(InventoryResponse[].class) //specifying return type of result
+                                .block();  //blocking operation for synchronous communication
 
         //only if all items are in inventory accept the order i.e., if isInStock for ALL inventory items is true then only return true
         boolean allProductsInStock = Arrays.stream(inventoryResponseArray).allMatch(InventoryResponse::isInStock);
@@ -54,7 +58,7 @@ public class OrderService {
             //save order to db if result true
             orderRepository.save(order);
         }else{
-            throw new IllegalArgumentException("Product not in stock, try again later");
+            throw new IllegalArgumentException("One or more products not in stock, try again later");
         }
 
     }

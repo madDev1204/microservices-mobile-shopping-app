@@ -1,6 +1,7 @@
 package com.example.controller;
 
 import com.example.dto.InventoryResponse;
+import com.example.entity.Inventory;
 import com.example.service.InventoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -25,5 +26,10 @@ public class InventoryController {
     @ResponseStatus(HttpStatus.OK)
     public List<InventoryResponse> isInStock(@RequestParam List<String> skuCode){
         return inventoryService.isInStock(skuCode);
+    }
+
+    @GetMapping("/all")
+    public List<Inventory> gettinAll(){
+        return inventoryService.getAll();
     }
 }
